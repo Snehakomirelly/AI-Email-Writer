@@ -8,6 +8,8 @@ AI Email Writer is a Flask-based web application that generates professional ema
 -Smart Subject Generation
 - Multiple Email Templates
 - English, Hindi, Telugu Support
+-Recipient Name
+-Sender Name
 - Voice Input
 - Email History
 - PDF Download
