@@ -128,7 +128,6 @@ def generate_subject(prompt, language):
 
         # DEFAULT
         else:
-            # Capitalize first 5 words of prompt as subject
             words = prompt.strip().split()
             short = " ".join(words[:5]).title()
             return f"Regarding: {short}"
@@ -211,11 +210,13 @@ def generate_subject(prompt, language):
 def generate_email():
 
     data = request.get_json()
-
-    prompt   = data.get("prompt", "").lower()
-    tone     = data.get("tone", "formal").lower()
+    recipient = data.get("recipient", "").strip()
+    receipt_name = data.get("receipt_name", "").strip()  # NEW: Get receipt name
+    prompt = data.get("prompt", "").lower()
+    tone = data.get("tone", "formal").lower()
     language = data.get("language", "english").lower()
     template = data.get("template", "auto").lower()
+    
     if template != "auto":
         prompt = template
 
@@ -226,41 +227,74 @@ def generate_email():
     subject = generate_subject(prompt, language)
 
     # =========================
-    # TONE SETTINGS
+    # TONE SETTINGS & GREETINGS
     # =========================
 
     # English
     if tone == "formal":
-        greeting_en = "Dear Sir/Madam,"
-        closing_en  = "Sincerely,\nSneha"
+        if recipient:
+            greeting_en = f"Dear {recipient},"
+        else:
+            greeting_en = "Dear Sir/Madam,"
+        closing_en = f"Sincerely,\n{receipt_name if receipt_name else 'Sneha'}"
+
     elif tone == "casual":
-        greeting_en = "Hi,"
-        closing_en  = "Best Regards,\nSneha"
+        if recipient:
+            greeting_en = f"Hi {recipient},"
+        else:
+            greeting_en = "Hi,"
+        closing_en = f"Best Regards,\n{receipt_name if receipt_name else 'Sneha'}"
+
     else:
-        greeting_en = "Respected Sir/Madam,"
-        closing_en  = "Thank You,\nSneha"
+        if recipient:
+            greeting_en = f"Respected {recipient},"
+        else:
+            greeting_en = "Respected Sir/Madam,"
+        closing_en = f"Thank You,\n{receipt_name if receipt_name else 'Sneha'}"
 
     # Hindi
     if tone == "formal":
-        greeting_hi = "आदरणीय महोदय/महोदया,"
-        closing_hi  = "भवदीय,\nSneha"
+        if recipient:
+            greeting_hi = f"प्रिय {recipient},"
+        else:
+            greeting_hi = "आदरणीय महोदय/महोदया,"
+        closing_hi = f"भवदीय,\n{receipt_name if receipt_name else 'Sneha'}"
+
     elif tone == "casual":
-        greeting_hi = "नमस्ते,"
-        closing_hi  = "शुभकामनाओं सहित,\nSneha"
+        if recipient:
+            greeting_hi = f"नमस्ते {recipient},"
+        else:
+            greeting_hi = "नमस्ते,"
+        closing_hi = f"शुभकामनाओं सहित,\n{receipt_name if receipt_name else 'Sneha'}"
+
     else:
-        greeting_hi = "आदरणीय महोदय/महोदया,"
-        closing_hi  = "धन्यवाद,\nSneha"
+        if recipient:
+            greeting_hi = f"आदरणीय {recipient},"
+        else:
+            greeting_hi = "आदरणीय महोदय/महोदया,"
+        closing_hi = f"धन्यवाद,\n{receipt_name if receipt_name else 'Sneha'}"
 
     # Telugu
     if tone == "formal":
-        greeting_te = "గౌరవనీయులైన సర్/మేడమ్ గారికి,"
-        closing_te  = "మీ విధేయుడు/విధేయురాలు,\nSneha"
+        if recipient:
+            greeting_te = f"ప్రియమైన {recipient},"
+        else:
+            greeting_te = "గౌరవనీయులైన సర్/మేడమ్ గారికి,"
+        closing_te = f"మీ విధేయుడు/విధేయురాలు,\n{receipt_name if receipt_name else 'Sneha'}"
+
     elif tone == "casual":
-        greeting_te = "హలో,"
-        closing_te  = "శుభాకాంక్షలతో,\nSneha"
+        if recipient:
+            greeting_te = f"హలో {recipient},"
+        else:
+            greeting_te = "హలో,"
+        closing_te = f"శుభాకాంక్షలతో,\n{receipt_name if receipt_name else 'Sneha'}"
+
     else:
-        greeting_te = "గౌరవనీయులైన సర్/మేడమ్ గారికి,"
-        closing_te  = "ధన్యవాదాలు,\nSneha"
+        if recipient:
+            greeting_te = f"గౌరవనీయులైన {recipient},"
+        else:
+            greeting_te = "గౌరవనీయులైన సర్/మేడమ్ గారికి,"
+        closing_te = f"ధన్యవాదాలు,\n{receipt_name if receipt_name else 'Sneha'}"
 
     # ==================================================
     # EMAIL BODIES PER LANGUAGE
@@ -735,7 +769,11 @@ Thank you for your time and understanding.
 
     email = f"Subject: {subject}\n\n{body}"
 
-    return jsonify({"email": email, "subject": subject})
+    return jsonify({
+        "email": email,
+        "subject": subject,
+        "receipt_name": receipt_name if receipt_name else "Sneha"  # NEW: Return receipt name
+    })
 
 
 # =========================

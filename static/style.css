@@ -181,6 +181,30 @@ h1 {
     font-size: 45px;
 }
 
+/* ========================= */
+/* INPUT FIELDS              */
+/* ========================= */
+
+/* Recipient Name Input */
+#recipientName,
+#receiptName {
+    width: 100%;
+    padding: 15px;
+    border-radius: 10px;
+    border: 2px solid #ddd;
+    font-size: 18px;
+    margin-bottom: 15px;
+    transition: 0.4s;
+    font-family: Arial, sans-serif;
+}
+
+#recipientName:focus,
+#receiptName:focus {
+    outline: none;
+    border-color: #4facfe;
+    box-shadow: 0 0 8px rgba(79, 172, 254, 0.3);
+}
+
 /* Textarea */
 textarea {
     width: 100%;
@@ -192,14 +216,19 @@ textarea {
     resize: none;
     margin-bottom: 20px;
     transition: 0.4s;
+    font-family: Arial, sans-serif;
 }
 
 textarea:focus {
     outline: none;
     border-color: #4facfe;
+    box-shadow: 0 0 8px rgba(79, 172, 254, 0.3);
 }
 
-/* Controls */
+/* ========================= */
+/* CONTROLS SECTION          */
+/* ========================= */
+
 .controls {
     display: flex;
     gap: 10px;
@@ -215,6 +244,21 @@ button {
     border: none;
     border-radius: 10px;
     font-size: 16px;
+    transition: 0.3s;
+}
+
+/* Select Styling */
+select {
+    background: #f0f0f0;
+    color: #333;
+    cursor: pointer;
+    border: 2px solid #ddd;
+}
+
+select:focus {
+    outline: none;
+    border-color: #4facfe;
+    box-shadow: 0 0 8px rgba(79, 172, 254, 0.3);
 }
 
 /* Buttons */
@@ -222,7 +266,6 @@ button {
     background: #007bff;
     color: white;
     cursor: pointer;
-    transition: 0.3s;
 }
 
 button:hover {
@@ -230,17 +273,36 @@ button:hover {
     transform: scale(1.03);
 }
 
-/* Output */
-#output {
-    margin-top: 25px;
-    background: #f5f5f5;
-    padding: 20px;
-    border-radius: 10px;
-    min-height: 150px;
-    white-space: pre-wrap;
-    border-left: 5px solid #007bff;
-    font-size: 16px;
-    transition: 0.4s;
+button:active {
+    transform: scale(0.98);
+}
+
+/* ========================= */
+/* SPEAK BUTTON              */
+/* ========================= */
+
+#speakBtn {
+    background: #4facfe;
+    min-width: 120px;
+}
+
+#speakBtn:hover {
+    background: #0056b3;
+}
+
+/* ========================= */
+/* MODE BUTTON               */
+/* ========================= */
+
+#modeBtn {
+    background: #ffc107;
+    color: #333;
+    min-width: 130px;
+}
+
+#modeBtn:hover {
+    background: #ff9800;
+    color: white;
 }
 
 /* ========================= */
@@ -249,10 +311,80 @@ button:hover {
 
 #clearBtn {
     background: #dc3545;
+    min-width: 100px;
 }
 
 #clearBtn:hover {
     background: #a71d2a;
+}
+
+/* ========================= */
+/* GENERATE BUTTON           */
+/* ========================= */
+
+#generateBtn {
+    background: #28a745;
+    min-width: 150px;
+    font-weight: bold;
+}
+
+#generateBtn:hover {
+    background: #1e7e34;
+}
+
+/* ========================= */
+/* OUTPUT SECTION            */
+/* ========================= */
+
+#output {
+    margin-top: 25px;
+    background: #f5f5f5;
+    padding: 20px;
+    border-radius: 10px;
+    min-height: 150px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    border-left: 5px solid #007bff;
+    font-size: 16px;
+    line-height: 1.6;
+    transition: 0.4s;
+    font-family: 'Courier New', monospace;
+    color: #333;
+}
+
+/* ========================= */
+/* COPY BUTTON               */
+/* ========================= */
+
+#copyBtn {
+    margin-top: 15px;
+    width: 100%;
+    background: #28a745;
+    font-weight: bold;
+}
+
+#copyBtn:hover {
+    background: #1e7e34;
+}
+
+/* ========================= */
+/* DOWNLOAD BUTTONS          */
+/* ========================= */
+
+.download-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.download-buttons button {
+    flex: 1;
+    background: #17a2b8;
+    font-weight: bold;
+}
+
+.download-buttons button:hover {
+    background: #117a8b;
 }
 
 /* ========================= */
@@ -272,15 +404,39 @@ button:hover {
     color: white;
 }
 
+.dark-mode #recipientName,
+.dark-mode #receiptName {
+    background: #2b2b2b;
+    color: white;
+    border: 2px solid #555;
+}
+
+.dark-mode #recipientName:focus,
+.dark-mode #receiptName:focus {
+    border-color: #4facfe;
+    box-shadow: 0 0 8px rgba(79, 172, 254, 0.3);
+}
+
 .dark-mode textarea {
     background: #2b2b2b;
     color: white;
     border: 2px solid #555;
 }
 
+.dark-mode textarea:focus {
+    border-color: #4facfe;
+    box-shadow: 0 0 8px rgba(79, 172, 254, 0.3);
+}
+
 .dark-mode select {
     background: #2b2b2b;
     color: white;
+    border: 2px solid #555;
+}
+
+.dark-mode select:focus {
+    border-color: #4facfe;
+    box-shadow: 0 0 8px rgba(79, 172, 254, 0.3);
 }
 
 .dark-mode #output {
@@ -289,30 +445,12 @@ button:hover {
     border-left: 5px solid #00c6ff;
 }
 
-/* Copy Button */
-#copyBtn {
-    margin-top: 15px;
-    width: 100%;
-    background: #28a745;
-}
-
-#copyBtn:hover {
-    background: #1e7e34;
-}
-
-/* Download Buttons */
-.download-buttons {
-    display: flex;
-    gap: 10px;
-    margin-top: 15px;
-}
-
-.download-buttons button {
-    flex: 1;
+.dark-mode button {
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
 }
 
 /* ========================= */
-/* RESPONSIVE                */
+/* RESPONSIVE DESIGN         */
 /* ========================= */
 
 @media (max-width: 768px) {
@@ -348,10 +486,19 @@ button:hover {
         margin-bottom: 20px;
     }
 
+    /* Input Fields Mobile */
+    #recipientName,
+    #receiptName {
+        padding: 12px;
+        font-size: 16px;
+        margin-bottom: 12px;
+    }
+
     textarea {
         height: 140px;
         font-size: 16px;
         padding: 12px;
+        margin-bottom: 15px;
     }
 
     .controls {
@@ -363,6 +510,7 @@ button:hover {
     .controls select {
         width: 100%;
         font-size: 15px;
+        padding: 12px;
     }
 
     .download-buttons {
@@ -371,14 +519,50 @@ button:hover {
 
     .download-buttons button {
         width: 100%;
+        padding: 12px;
     }
 
     #output {
         font-size: 14px;
         padding: 15px;
+        min-height: 120px;
+    }
+
+    #copyBtn {
+        padding: 12px;
     }
 
     .history-title {
         max-width: 220px;
+    }
+}
+
+@media (max-width: 480px) {
+
+    .container {
+        padding: 10px;
+        border-radius: 10px;
+    }
+
+    h1 {
+        font-size: 22px;
+        margin-bottom: 15px;
+    }
+
+    #recipientName,
+    #receiptName,
+    textarea,
+    select,
+    button {
+        font-size: 14px;
+        padding: 10px;
+    }
+
+    .controls {
+        gap: 8px;
+    }
+
+    .sidebar {
+        max-height: 150px;
     }
 }

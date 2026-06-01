@@ -36,6 +36,19 @@
 
             <h1 id="title">AI Email Writer</h1>
 
+            <input
+                type="text"
+                id="recipientName"
+                placeholder="Recipient Name (e.g. Mr. Sharma)"
+                class="recipient-input">
+
+            <!-- NEW: Receipt Name Input -->
+            <input
+                type="text"
+                id="receiptName"
+                placeholder="Your Name / Sender Name (e.g. John Doe)"
+                class="recipient-input">
+
             <textarea
                 id="prompt"
                 placeholder="Enter or speak email topic">
@@ -57,23 +70,23 @@
 
                 <!-- Language Selector -->
                 <select id="language" onchange="changeLanguage()">
-    <option value="english">English</option>
-    <option value="hindi">Hindi</option>
-    <option value="telugu">Telugu</option>
-</select>
+                    <option value="english">English</option>
+                    <option value="hindi">Hindi</option>
+                    <option value="telugu">Telugu</option>
+                </select>
 
-<select id="template">
-    <option value="auto">Auto Detect</option>
-    <option value="leave">Leave Email</option>
-    <option value="internship">Internship Email</option>
-    <option value="job">Job Application</option>
-    <option value="apology">Apology Email</option>
-    <option value="resignation">Resignation Email</option>
-    <option value="thank">Thank You Email</option>
-    <option value="meeting">Meeting Request</option>
-    <option value="invitation">Invitation Email</option>
-    <option value="complaint">Complaint Email</option>
-</select>
+                <select id="template">
+                    <option value="auto">Auto Detect</option>
+                    <option value="leave">Leave Email</option>
+                    <option value="internship">Internship Email</option>
+                    <option value="job">Job Application</option>
+                    <option value="apology">Apology Email</option>
+                    <option value="resignation">Resignation Email</option>
+                    <option value="thank">Thank You Email</option>
+                    <option value="meeting">Meeting Request</option>
+                    <option value="invitation">Invitation Email</option>
+                    <option value="complaint">Complaint Email</option>
+                </select>
 
                 <!-- Dark Mode -->
                 <button onclick="toggleMode()" id="modeBtn">

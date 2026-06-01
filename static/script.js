@@ -16,10 +16,22 @@ window.onload = function () {
 
 async function generateEmail() {
 
-    const prompt   = document.getElementById("prompt").value.trim();
-    const tone     = document.getElementById("tone").value;
+    const recipientName = document.getElementById("recipientName").value.trim();
+    const receiptName = document.getElementById("receiptName").value.trim();
+    const prompt = document.getElementById("prompt").value.trim();
+    const tone = document.getElementById("tone").value;
     const language = document.getElementById("language").value;
     const template = document.getElementById("template").value;
+
+    if (!recipientName) {
+        alert("Please enter recipient name.");
+        return;
+    }
+
+    if (!receiptName) {
+        alert("Please enter your name (receipt name).");
+        return;
+    }
 
     if (!prompt) {
         alert("Please enter or speak an email topic first.");
@@ -31,23 +43,32 @@ async function generateEmail() {
     const response = await fetch("/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({prompt,tone,language,template})
+        body: JSON.stringify({
+            recipient: recipientName,
+            receipt_name: receiptName,
+            prompt: prompt,
+            tone: tone,
+            language: language,
+            template: template
+        })
     });
 
     const data = await response.json();
     const email = data.email;
+    const subject = data.subject;
+    const returnedReceiptName = data.receipt_name;
 
     document.getElementById("output").innerText = email;
 
     // ── Save to history ──
-    saveToHistory(prompt, tone, language, email);
+    saveToHistory(recipientName, receiptName, prompt, tone, language, email, subject);
 }
 
 // =========================
 // SAVE TO HISTORY
 // =========================
 
-function saveToHistory(prompt, tone, language, email) {
+function saveToHistory(recipientName, receiptName, prompt, tone, language, email, subject) {
 
     const now = new Date();
     const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -55,10 +76,13 @@ function saveToHistory(prompt, tone, language, email) {
 
     const entry = {
         id: Date.now(),
+        recipientName: recipientName,
+        receiptName: receiptName,
         prompt: prompt,
         tone: tone,
         language: language,
         email: email,
+        subject: subject,
         time: timeStr,
         date: dateStr
     };
@@ -85,7 +109,7 @@ function saveToHistory(prompt, tone, language, email) {
 
 function renderHistory() {
 
-    const list     = document.getElementById("historyList");
+    const list = document.getElementById("historyList");
     const noHistory = document.getElementById("noHistory");
 
     if (emailHistory.length === 0) {
@@ -129,9 +153,11 @@ function loadFromHistory(index) {
     if (!entry) return;
 
     // Restore prompt and settings
-    document.getElementById("prompt").value     = entry.prompt;
-    document.getElementById("tone").value       = entry.tone;
-    document.getElementById("language").value   = entry.language;
+    document.getElementById("recipientName").value = entry.recipientName;
+    document.getElementById("receiptName").value = entry.receiptName;
+    document.getElementById("prompt").value = entry.prompt;
+    document.getElementById("tone").value = entry.tone;
+    document.getElementById("language").value = entry.language;
     document.getElementById("output").innerText = entry.email;
 
     // Highlight active item
@@ -172,7 +198,7 @@ function clearHistory() {
 
     if (confirm("Clear all email history?")) {
         emailHistory = [];
-        activeIndex  = null;
+        activeIndex = null;
         localStorage.setItem("emailHistory", JSON.stringify(emailHistory));
         renderHistory();
     }
@@ -184,10 +210,12 @@ function clearHistory() {
 
 function clearAll() {
 
-    document.getElementById("prompt").value     = "";
+    document.getElementById("recipientName").value = "";
+    document.getElementById("receiptName").value = "";
+    document.getElementById("prompt").value = "";
     document.getElementById("output").innerText = "";
-    document.getElementById("tone").value       = "formal";
-    document.getElementById("language").value   = "english";
+    document.getElementById("tone").value = "formal";
+    document.getElementById("language").value = "english";
     activeIndex = null;
     renderHistory(); // Remove active highlight
     document.getElementById("prompt").focus();
@@ -226,7 +254,7 @@ function downloadTXT() {
 
     const blob = new Blob([output], { type: "text/plain" });
     const link = document.createElement("a");
-    link.href     = URL.createObjectURL(blob);
+    link.href = URL.createObjectURL(blob);
     link.download = "email.txt";
     link.click();
 }
@@ -332,36 +360,44 @@ function toggleMode() {
 
 function changeLanguage() {
 
-    const lang        = document.getElementById("language").value;
-    const title       = document.getElementById("title");
-    const prompt      = document.getElementById("prompt");
+    const lang = document.getElementById("language").value;
+    const title = document.getElementById("title");
+    const recipientPlaceholder = document.getElementById("recipientName");
+    const receiptPlaceholder = document.getElementById("receiptName");
+    const prompt = document.getElementById("prompt");
     const generateBtn = document.getElementById("generateBtn");
-    const speakBtn    = document.getElementById("speakBtn");
-    const copyBtn     = document.getElementById("copyBtn");
-    const clearBtn    = document.getElementById("clearBtn");
+    const speakBtn = document.getElementById("speakBtn");
+    const copyBtn = document.getElementById("copyBtn");
+    const clearBtn = document.getElementById("clearBtn");
 
     if (lang === "hindi") {
-        title.innerText       = "AI ईमेल लेखक";
-        prompt.placeholder    = "ईमेल विषय दर्ज करें या बोलें";
+        title.innerText = "AI ईमेल लेखक";
+        recipientPlaceholder.placeholder = "प्राप्तकर्ता का नाम (जैसे मिस्टर शर्मा)";
+        receiptPlaceholder.placeholder = "आपका नाम / प्रेषक का नाम (जैसे जॉन डो)";
+        prompt.placeholder = "ईमेल विषय दर्ज करें या बोलें";
         generateBtn.innerText = "ईमेल बनाएं";
-        speakBtn.innerText    = "🎤 बोलें";
-        copyBtn.innerText     = "📋 ईमेल कॉपी करें";
-        clearBtn.innerText    = "🗑️ साफ़ करें";
+        speakBtn.innerText = "🎤 बोलें";
+        copyBtn.innerText = "📋 ईमेल कॉपी करें";
+        clearBtn.innerText = "🗑️ साफ़ करें";
 
     } else if (lang === "telugu") {
-        title.innerText       = "AI ఇమెయిల్ రైటర్";
-        prompt.placeholder    = "ఇమెయిల్ విషయం నమోదు చేయండి లేదా మాట్లాడండి";
+        title.innerText = "AI ఇమెయిల్ రైటర్";
+        recipientPlaceholder.placeholder = "గ్రహీత పేరు (ఉదా. మిస్టర్ శర్మ)";
+        receiptPlaceholder.placeholder = "మీ పేరు / పంపిన వారి పేరు (ఉదా. జాన్ డో)";
+        prompt.placeholder = "ఇమెయిల్ విషయం నమోదు చేయండి లేదా మాట్లాడండి";
         generateBtn.innerText = "ఇమెయిల్ రూపొందించు";
-        speakBtn.innerText    = "🎤 మాట్లాడు";
-        copyBtn.innerText     = "📋 ఇమెయిల్ కాపీ చేయి";
-        clearBtn.innerText    = "🗑️ క్లియర్";
+        speakBtn.innerText = "🎤 మాట్లాడు";
+        copyBtn.innerText = "📋 ఇమెయిల్ కాపీ చేయి";
+        clearBtn.innerText = "🗑️ క్లియర్";
 
     } else {
-        title.innerText       = "AI Email Writer";
-        prompt.placeholder    = "Enter or speak email topic";
+        title.innerText = "AI Email Writer";
+        recipientPlaceholder.placeholder = "Recipient Name (e.g. Mr. Sharma)";
+        receiptPlaceholder.placeholder = "Your Name / Sender Name (e.g. John Doe)";
+        prompt.placeholder = "Enter or speak email topic";
         generateBtn.innerText = "Generate Email";
-        speakBtn.innerText    = "🎤 Speak";
-        copyBtn.innerText     = "📋 Copy Email";
-        clearBtn.innerText    = "🗑️ Clear";
+        speakBtn.innerText = "🎤 Speak";
+        copyBtn.innerText = "📋 Copy Email";
+        clearBtn.innerText = "🗑️ Clear";
     }
 }
