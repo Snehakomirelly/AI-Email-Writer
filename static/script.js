@@ -262,12 +262,15 @@ function startVoice() {
         window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-        alert("Voice input is not supported in this browser. Try Chrome.");
+        alert("Voice input is not supported in this browser. Use Google Chrome.");
         return;
     }
 
     const recognition = new SpeechRecognition();
+
     recognition.lang = "en-US";
+    recognition.continuous = false;
+    recognition.interimResults = false;
 
     recognition.onstart = () => {
         document.getElementById("speakBtn").innerText = "🔴 Listening...";
@@ -279,9 +282,27 @@ function startVoice() {
         document.getElementById("speakBtn").innerText = "🎤 Speak";
     };
 
-    recognition.onerror = () => {
+    recognition.onerror = (event) => {
+
         document.getElementById("speakBtn").innerText = "🎤 Speak";
-        alert("Voice input failed. Please try again.");
+
+        console.log("Speech Recognition Error:", event.error);
+
+        if (event.error === "not-allowed") {
+            alert("Microphone permission denied. Please allow microphone access.");
+        }
+        else if (event.error === "no-speech") {
+            alert("No speech detected. Please speak clearly.");
+        }
+        else if (event.error === "audio-capture") {
+            alert("No microphone detected on this device.");
+        }
+        else if (event.error === "network") {
+            alert("Network error occurred during voice recognition.");
+        }
+        else {
+            alert("Voice Error: " + event.error);
+        }
     };
 
     recognition.onend = () => {
