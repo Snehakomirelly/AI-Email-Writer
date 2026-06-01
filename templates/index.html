@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>AI Email Writer</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+    <!-- ===================== -->
+    <!-- SIDEBAR HISTORY       -->
+    <!-- ===================== -->
+    <div class="sidebar" id="sidebar">
+
+        <div class="sidebar-header">
+            <span>📋 Email History</span>
+            <button class="clear-history-btn" onclick="clearHistory()">🗑️ Clear All</button>
+        </div>
+
+        <div class="sidebar-list" id="historyList">
+            <p class="no-history" id="noHistory">No emails yet.<br>Generate one to see history!</p>
+        </div>
+
+    </div>
+
+    <!-- ===================== -->
+    <!-- MAIN CONTENT          -->
+    <!-- ===================== -->
+    <div class="main" id="main">
+
+        <div class="container">
+
+            <h1 id="title">AI Email Writer</h1>
+
+            <textarea
+                id="prompt"
+                placeholder="Enter or speak email topic">
+            </textarea>
+
+            <div class="controls">
+
+                <!-- Voice Button -->
+                <button onclick="startVoice()" id="speakBtn">
+                    🎤 Speak
+                </button>
+
+                <!-- Tone Selector -->
+                <select id="tone">
+                    <option value="formal">Formal</option>
+                    <option value="casual">Casual</option>
+                    <option value="polite">Polite</option>
+                </select>
+
+                <!-- Language Selector -->
+                <select id="language" onchange="changeLanguage()">
+    <option value="english">English</option>
+    <option value="hindi">Hindi</option>
+    <option value="telugu">Telugu</option>
+</select>
+
+<select id="template">
+    <option value="auto">Auto Detect</option>
+    <option value="leave">Leave Email</option>
+    <option value="internship">Internship Email</option>
+    <option value="job">Job Application</option>
+    <option value="apology">Apology Email</option>
+    <option value="resignation">Resignation Email</option>
+    <option value="thank">Thank You Email</option>
+    <option value="meeting">Meeting Request</option>
+    <option value="invitation">Invitation Email</option>
+    <option value="complaint">Complaint Email</option>
+</select>
+
+                <!-- Dark Mode -->
+                <button onclick="toggleMode()" id="modeBtn">
+                    🌙 Dark Mode
+                </button>
+
+                <!-- Clear Button -->
+                <button onclick="clearAll()" id="clearBtn">
+                    🗑️ Clear
+                </button>
+
+                <!-- Generate Button -->
+                <button onclick="generateEmail()" id="generateBtn">
+                    Generate Email
+                </button>
+
+            </div>
+
+            <!-- Output -->
+            <div id="output"></div>
+
+            <div class="download-buttons">
+
+                <button id="copyBtn" onclick="copyEmail()">
+                    📋 Copy Email
+                </button>
+
+                <button onclick="downloadTXT()">
+                    ⬇ Download TXT
+                </button>
+
+                <button onclick="downloadPDF()">
+                    ⬇ Download PDF
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="/static/script.js"></script>
+
+</body>
+
+</html>
