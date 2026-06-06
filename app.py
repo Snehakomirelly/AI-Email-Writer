@@ -1,30 +1,16 @@
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
-
 app = Flask(__name__)
 CORS(app)
-
-# =========================
 # HOME PAGE
-# =========================
-
 @app.route("/")
 def home():
     return render_template("index.html")
-
-
-# =========================
 # SMART SUBJECT GENERATOR
-# =========================
-
 def generate_subject(prompt, language):
-
     p = prompt.lower()
-
-    # ── English subjects ──────────────────────────────────────────
-
+    # ── English subjects ─
     if language == "english":
-
         # LEAVE / SICK
         if "fever" in p:
             return "Sick Leave Request – Fever"

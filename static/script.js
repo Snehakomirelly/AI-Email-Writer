@@ -287,7 +287,7 @@ function downloadPDF() {
 function startVoice() {
 
     const SpeechRecognition =
-        window.SpeechRecognition || window.webkitSpeechRecognition;
+        window.SpeechRecognition || window.webkitSpeechRecognition||window.msSpeechRecognition;;
 
     if (!SpeechRecognition) {
         alert("Voice input is not supported in this browser. Use Google Chrome.");
