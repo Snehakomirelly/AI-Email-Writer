@@ -40,28 +40,37 @@ async function generateEmail() {
 
     document.getElementById("output").innerText = "Generating email...";
 
-    const response = await fetch("/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            recipient: recipientName,
-            receipt_name: receiptName,
-            prompt: prompt,
-            tone: tone,
-            language: language,
-            template: template
-        })
-    });
+    try {
+        const response = await fetch("/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                recipient: recipientName,
+                receipt_name: receiptName,
+                prompt: prompt,
+                tone: tone,
+                language: language,
+                template: template
+            })
+        });
 
-    const data = await response.json();
-    const email = data.email;
-    const subject = data.subject;
-    const returnedReceiptName = data.receipt_name;
+        if (!response.ok) {
+            throw new Error("Server error: " + response.status);
+        }
 
-    document.getElementById("output").innerText = email;
+        const data = await response.json();
+        const email = data.email;
+        const subject = data.subject;
 
-    // ── Save to history ──
-    saveToHistory(recipientName, receiptName, prompt, tone, language, email, subject);
+        document.getElementById("output").innerText = email;
+
+        // Save to history
+        saveToHistory(recipientName, receiptName, prompt, tone, language, email, subject);
+
+    } catch (err) {
+        document.getElementById("output").innerText = "Error generating email. Please try again.";
+        console.error("Generate email error:", err);
+    }
 }
 
 // =========================
@@ -110,7 +119,6 @@ function saveToHistory(recipientName, receiptName, prompt, tone, language, email
 function renderHistory() {
 
     const list = document.getElementById("historyList");
-    const noHistory = document.getElementById("noHistory");
 
     if (emailHistory.length === 0) {
         list.innerHTML = '<p class="no-history" id="noHistory">No emails yet.<br>Generate one to see history!</p>';
@@ -152,7 +160,6 @@ function loadFromHistory(index) {
     const entry = emailHistory[index];
     if (!entry) return;
 
-    // Restore prompt and settings
     document.getElementById("recipientName").value = entry.recipientName;
     document.getElementById("receiptName").value = entry.receiptName;
     document.getElementById("prompt").value = entry.prompt;
@@ -160,11 +167,9 @@ function loadFromHistory(index) {
     document.getElementById("language").value = entry.language;
     document.getElementById("output").innerText = entry.email;
 
-    // Highlight active item
     activeIndex = index;
     renderHistory();
 
-    // Scroll to top of output
     document.getElementById("output").scrollIntoView({ behavior: "smooth" });
 }
 
@@ -174,7 +179,7 @@ function loadFromHistory(index) {
 
 function deleteHistoryItem(event, index) {
 
-    event.stopPropagation(); // Don't trigger loadFromHistory
+    event.stopPropagation();
 
     emailHistory.splice(index, 1);
     localStorage.setItem("emailHistory", JSON.stringify(emailHistory));
@@ -217,7 +222,7 @@ function clearAll() {
     document.getElementById("tone").value = "formal";
     document.getElementById("language").value = "english";
     activeIndex = null;
-    renderHistory(); // Remove active highlight
+    renderHistory();
     document.getElementById("prompt").focus();
 }
 
@@ -236,6 +241,8 @@ function copyEmail() {
 
     navigator.clipboard.writeText(output).then(() => {
         alert("Email copied to clipboard!");
+    }).catch(() => {
+        alert("Failed to copy. Please copy manually.");
     });
 }
 
@@ -281,24 +288,37 @@ function downloadPDF() {
 }
 
 // =========================
-// VOICE INPUT
+// VOICE INPUT — FULLY FIXED ✅
 // =========================
 
 function startVoice() {
 
+    // FIX 1: Clean declaration, no double semicolon
     const SpeechRecognition =
-        window.SpeechRecognition || window.webkitSpeechRecognition||window.msSpeechRecognition;;
+        window.SpeechRecognition ||
+        window.webkitSpeechRecognition ||
+        window.msSpeechRecognition;
 
     if (!SpeechRecognition) {
-        alert("Voice input is not supported in this browser. Use Google Chrome.");
+        alert("Voice input is not supported in this browser.\nPlease use Google Chrome for voice input.");
         return;
     }
 
+    // FIX 2: Dynamic language based on selected language dropdown
+    const selectedLang = document.getElementById("language").value;
+    const langMap = {
+        "english": "en-US",
+        "hindi":   "hi-IN",
+        "telugu":  "te-IN"
+    };
+
     const recognition = new SpeechRecognition();
 
-    recognition.lang = "en-US";
+    // FIX 3: Use mapped language, not hardcoded en-US
+    recognition.lang = langMap[selectedLang] || "en-US";
     recognition.continuous = false;
     recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
 
     recognition.onstart = () => {
         document.getElementById("speakBtn").innerText = "🔴 Listening...";
@@ -313,23 +333,21 @@ function startVoice() {
     recognition.onerror = (event) => {
 
         document.getElementById("speakBtn").innerText = "🎤 Speak";
-
         console.log("Speech Recognition Error:", event.error);
 
         if (event.error === "not-allowed") {
-            alert("Microphone permission denied. Please allow microphone access.");
-        }
-        else if (event.error === "no-speech") {
-            alert("No speech detected. Please speak clearly.");
-        }
-        else if (event.error === "audio-capture") {
+            alert("Microphone permission denied.\nPlease allow microphone access in browser settings and try again.");
+        } else if (event.error === "no-speech") {
+            alert("No speech detected. Please speak clearly and try again.");
+        } else if (event.error === "audio-capture") {
             alert("No microphone detected on this device.");
-        }
-        else if (event.error === "network") {
-            alert("Network error occurred during voice recognition.");
-        }
-        else {
-            alert("Voice Error: " + event.error);
+        } else if (event.error === "network") {
+            alert("Network error during voice recognition.\nPlease check your internet connection.");
+        } else if (event.error === "aborted") {
+            // User cancelled — no alert needed
+            console.log("Speech recognition aborted by user.");
+        } else {
+            alert("Voice Error: " + event.error + "\nTip: Use Google Chrome for best results.");
         }
     };
 
@@ -337,7 +355,14 @@ function startVoice() {
         document.getElementById("speakBtn").innerText = "🎤 Speak";
     };
 
-    recognition.start();
+    // FIX 4: try/catch to handle browser startup errors safely
+    try {
+        recognition.start();
+    } catch (e) {
+        document.getElementById("speakBtn").innerText = "🎤 Speak";
+        alert("Could not start voice recognition.\nPlease use Google Chrome.");
+        console.error("recognition.start() failed:", e);
+    }
 }
 
 // =========================
