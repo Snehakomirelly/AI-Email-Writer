@@ -291,78 +291,164 @@ function downloadPDF() {
 // VOICE INPUT — FULLY FIXED ✅
 // =========================
 
+// =========================
+// VOICE INPUT - FIXED VERSION
+// =========================
+
 function startVoice() {
 
-    // FIX 1: Clean declaration, no double semicolon
     const SpeechRecognition =
         window.SpeechRecognition ||
-        window.webkitSpeechRecognition ||
-        window.msSpeechRecognition;
+        window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-        alert("Voice input is not supported in this browser.\nPlease use Google Chrome for voice input.");
+        alert("Voice input is not supported.\nPlease use Google Chrome.");
         return;
     }
 
-    // FIX 2: Dynamic language based on selected language dropdown
-    const selectedLang = document.getElementById("language").value;
-    const langMap = {
-        "english": "en-US",
-        "hindi":   "hi-IN",
-        "telugu":  "te-IN"
-    };
 
     const recognition = new SpeechRecognition();
 
-    // FIX 3: Use mapped language, not hardcoded en-US
+
+    // Language selection
+    const selectedLang = document.getElementById("language").value;
+
+    const langMap = {
+        "english": "en-US",
+        "hindi": "hi-IN",
+        "telugu": "te-IN"
+    };
+
+
     recognition.lang = langMap[selectedLang] || "en-US";
+
     recognition.continuous = false;
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
-    recognition.onstart = () => {
-        document.getElementById("speakBtn").innerText = "🔴 Listening...";
+
+
+    recognition.onstart = function(){
+
+        document.getElementById("speakBtn").innerHTML =
+        "🔴 Listening...";
+
     };
 
-    recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        document.getElementById("prompt").value = transcript;
-        document.getElementById("speakBtn").innerText = "🎤 Speak";
+
+
+    recognition.onresult = function(event){
+
+        let text =
+        event.results[0][0].transcript;
+
+
+        document.getElementById("prompt").value = text;
+
+
+        document.getElementById("speakBtn").innerHTML =
+        "🎤 Speak";
+
     };
 
-    recognition.onerror = (event) => {
 
-        document.getElementById("speakBtn").innerText = "🎤 Speak";
-        console.log("Speech Recognition Error:", event.error);
 
-        if (event.error === "not-allowed") {
-            alert("Microphone permission denied.\nPlease allow microphone access in browser settings and try again.");
-        } else if (event.error === "no-speech") {
-            alert("No speech detected. Please speak clearly and try again.");
-        } else if (event.error === "audio-capture") {
-            alert("No microphone detected on this device.");
-        } else if (event.error === "network") {
-            alert("Network error during voice recognition.\nPlease check your internet connection.");
-        } else if (event.error === "aborted") {
-            // User cancelled — no alert needed
-            console.log("Speech recognition aborted by user.");
-        } else {
-            alert("Voice Error: " + event.error + "\nTip: Use Google Chrome for best results.");
+    recognition.onerror = function(event){
+
+        console.log("Voice Error:", event.error);
+
+
+        document.getElementById("speakBtn").innerHTML =
+        "🎤 Speak";
+
+
+        if(event.error === "not-allowed"){
+
+            alert(
+            "Microphone permission denied.\n\nAllow microphone access and try again."
+            );
+
         }
+
+
+        else if(event.error === "no-speech"){
+
+            alert(
+            "No speech detected.\nPlease speak clearly."
+            );
+
+        }
+
+
+        else if(event.error === "audio-capture"){
+
+            alert(
+            "No microphone found."
+            );
+
+        }
+
+
+        else if(event.error === "network"){
+
+            alert(
+            "Voice recognition service unavailable.\n\nTry:\n1. Refresh page\n2. Use Chrome\n3. Allow microphone permission"
+            );
+
+        }
+
+
+        else{
+
+            alert(
+            "Voice recognition failed.\nTry again."
+            );
+
+        }
+
     };
 
-    recognition.onend = () => {
-        document.getElementById("speakBtn").innerText = "🎤 Speak";
+
+
+    recognition.onend = function(){
+
+        document.getElementById("speakBtn").innerHTML =
+        "🎤 Speak";
+
     };
 
-    // FIX 4: try/catch to handle browser startup errors safely
-    try {
-        recognition.start();
-    } catch (e) {
-        document.getElementById("speakBtn").innerText = "🎤 Speak";
-        alert("Could not start voice recognition.\nPlease use Google Chrome.");
-        console.error("recognition.start() failed:", e);
-    }
+
+
+    // Check microphone permission first
+
+    navigator.mediaDevices
+    .getUserMedia({audio:true})
+
+    .then(function(){
+
+        try{
+
+            recognition.start();
+
+        }
+
+        catch(error){
+
+            console.log(error);
+
+        }
+
+    })
+
+
+    .catch(function(){
+
+        alert(
+        "Please allow microphone permission in browser settings."
+        );
+
+    });
+
 }
 
 // =========================
