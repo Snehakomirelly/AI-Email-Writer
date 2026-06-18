@@ -197,7 +197,7 @@ def generate_email():
 
     data = request.get_json()
     recipient = data.get("recipient", "").strip()
-    receipt_name = data.get("receipt_name", "").strip()  # NEW: Get receipt name
+    receipt_name = data.get("receipt_name", "").strip()
     prompt = data.get("prompt", "").lower()
     tone = data.get("tone", "formal").lower()
     language = data.get("language", "english").lower()
@@ -758,7 +758,7 @@ Thank you for your time and understanding.
     return jsonify({
         "email": email,
         "subject": subject,
-        "receipt_name": receipt_name if receipt_name else "Sneha"  # NEW: Return receipt name
+        "receipt_name": receipt_name if receipt_name else "Sneha"
     })
 
 
