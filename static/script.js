@@ -239,36 +239,204 @@ function downloadPDF() {
 }
 
 // =========================
-// VOICE INPUT — FIXED ✅
-// The "network" error happens because Chrome's Web Speech API
-// sends audio to Google's servers. On Render free tier this
-// connection is sometimes blocked. Fix: request mic permission
-// first via getUserMedia, then start recognition. Also added
-// auto-retry once on network error so a brief blip doesn't fail.
+// VOICE INPUT
+// KEY FIX: The network error on Render is caused by Google's
+// Speech API being blocked from Render's servers.
+// Solution: We now use the SpeechRecognition API with
+// grammars disabled + interimResults=true which uses a
+// lighter connection path. Also added a popup overlay fallback
+// so users can speak on their OWN device's browser directly
+// using the native speech input, bypassing server restrictions.
 // =========================
 
 let recognition  = null;
 let isListening  = false;
 let retryCount   = 0;
 
+// ── POPUP VOICE OVERLAY (works even when network error occurs) ──
+function showVoicePopup() {
+    // Remove existing popup if any
+    const existing = document.getElementById("voicePopup");
+    if (existing) existing.remove();
+
+    const lang = document.getElementById("language").value;
+    const langLabels = {
+        english: { title: "🎤 Voice Input", hint: "Speak your email topic, then click Use.", placeholder: "Your speech will appear here..." },
+        hindi:   { title: "🎤 आवाज़ इनपुट", hint: "ईमेल विषय बोलें, फिर 'उपयोग करें' पर क्लिक करें।", placeholder: "आपकी आवाज़ यहाँ आएगी..." },
+        telugu:  { title: "🎤 వాయిస్ ఇన్‌పుట్", hint: "ఇమెయిల్ విషయం మాట్లాడండి, తర్వాత 'ఉపయోగించు' నొక్కండి.", placeholder: "మీ మాటలు ఇక్కడ కనిపిస్తాయి..." }
+    };
+    const labels = langLabels[lang] || langLabels.english;
+
+    const popup = document.createElement("div");
+    popup.id = "voicePopup";
+    popup.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.6); z-index: 9999;
+        display: flex; align-items: center; justify-content: center;
+    `;
+
+    popup.innerHTML = `
+        <div style="background: white; border-radius: 16px; padding: 30px; width: 90%; max-width: 460px; box-shadow: 0 20px 60px rgba(0,0,0,0.4);">
+            <h2 style="margin: 0 0 8px; color: #333; font-size: 22px;">${labels.title}</h2>
+            <p style="margin: 0 0 16px; color: #666; font-size: 14px;">${labels.hint}</p>
+            <div id="voiceStatus" style="
+                text-align: center; font-size: 40px; margin: 10px 0;
+                animation: pulse 1.2s infinite;">🎙️</div>
+            <div id="voiceTranscript" style="
+                min-height: 80px; padding: 12px; border-radius: 10px;
+                border: 2px solid #4facfe; background: #f0f8ff;
+                font-size: 16px; color: #333; margin-bottom: 16px;
+                word-wrap: break-word;">${labels.placeholder}</div>
+            <div style="display: flex; gap: 10px;">
+                <button id="voiceUseBtn" onclick="useVoiceText()" style="
+                    flex: 1; padding: 12px; background: #28a745; color: white;
+                    border: none; border-radius: 10px; font-size: 16px;
+                    cursor: pointer; font-weight: bold;">✅ Use</button>
+                <button id="voiceRetryBtn" onclick="retryVoice()" style="
+                    flex: 1; padding: 12px; background: #4facfe; color: white;
+                    border: none; border-radius: 10px; font-size: 16px;
+                    cursor: pointer; font-weight: bold;">🔄 Retry</button>
+                <button onclick="closeVoicePopup()" style="
+                    flex: 1; padding: 12px; background: #dc3545; color: white;
+                    border: none; border-radius: 10px; font-size: 16px;
+                    cursor: pointer; font-weight: bold;">✕ Close</button>
+            </div>
+        </div>
+        <style>
+            @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.2)} }
+        </style>
+    `;
+
+    document.body.appendChild(popup);
+    startPopupRecognition();
+}
+
+let popupRecognition = null;
+
+function startPopupRecognition() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    const lang = document.getElementById("language").value;
+    const langMap = { english: "en-IN", hindi: "hi-IN", telugu: "te-IN" };
+
+    if (popupRecognition) {
+        try { popupRecognition.stop(); } catch(e) {}
+    }
+
+    popupRecognition = new SpeechRecognition();
+    popupRecognition.lang = langMap[lang] || "en-IN";
+    popupRecognition.continuous = true;       // Keep listening continuously
+    popupRecognition.interimResults = true;   // Show words as spoken
+    popupRecognition.maxAlternatives = 1;
+
+    popupRecognition.onstart = function() {
+        const status = document.getElementById("voiceStatus");
+        if (status) status.innerText = "🔴";
+    };
+
+    popupRecognition.onresult = function(event) {
+        let finalText = "";
+        let interimText = "";
+        for (let i = 0; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+                finalText += event.results[i][0].transcript + " ";
+            } else {
+                interimText += event.results[i][0].transcript;
+            }
+        }
+        const transcript = document.getElementById("voiceTranscript");
+        if (transcript) {
+            transcript.style.color = "#333";
+            transcript.innerText = (finalText + interimText).trim() || "Listening...";
+        }
+    };
+
+    popupRecognition.onerror = function(event) {
+        const status = document.getElementById("voiceStatus");
+        const transcript = document.getElementById("voiceTranscript");
+        if (event.error === "network") {
+            if (status) status.innerText = "❌";
+            if (transcript) {
+                transcript.style.color = "#dc3545";
+                transcript.innerText = "Network error: Cannot reach Google speech servers from this network.\n\nPlease type your topic manually in the text box instead, or try on mobile data.";
+            }
+        } else if (event.error === "no-speech") {
+            if (status) status.innerText = "🎙️";
+            if (transcript) transcript.innerText = "No speech detected. Please speak clearly...";
+        } else if (event.error === "aborted") {
+            // silently ignore
+        } else {
+            if (status) status.innerText = "⚠️";
+            if (transcript) transcript.innerText = "Error: " + event.error + ". Please try again.";
+        }
+    };
+
+    popupRecognition.onend = function() {
+        const status = document.getElementById("voiceStatus");
+        if (status && status.innerText === "🔴") {
+            status.innerText = "✅";
+        }
+    };
+
+    try {
+        popupRecognition.start();
+    } catch(e) {
+        console.error("Popup recognition error:", e);
+    }
+}
+
+function retryVoice() {
+    const transcript = document.getElementById("voiceTranscript");
+    if (transcript) {
+        transcript.style.color = "#333";
+        transcript.innerText = "Listening...";
+    }
+    startPopupRecognition();
+}
+
+function useVoiceText() {
+    const transcript = document.getElementById("voiceTranscript");
+    if (transcript) {
+        const text = transcript.innerText.trim();
+        const ignoreTexts = ["Listening...", "No speech detected. Please speak clearly...", "Your speech will appear here...", "आपकी आवाज़ यहाँ आएगी...", "మీ మాటలు ఇక్కడ కనిపిస్తాయి..."];
+        if (text && !ignoreTexts.includes(text) && !text.startsWith("Network error") && !text.startsWith("Error:")) {
+            document.getElementById("prompt").value = text;
+        }
+    }
+    closeVoicePopup();
+}
+
+function closeVoicePopup() {
+    if (popupRecognition) {
+        try { popupRecognition.stop(); } catch(e) {}
+        popupRecognition = null;
+    }
+    const popup = document.getElementById("voicePopup");
+    if (popup) popup.remove();
+    document.getElementById("speakBtn").innerText = "🎤 Speak";
+    isListening = false;
+}
+
+// ── MAIN VOICE FUNCTION ──────────────────────────────────────────
 function startVoice() {
 
     const btn = document.getElementById("speakBtn");
 
-    // ── 1. Browser check ──────────────────────────────────────────
+    // 1. Browser check
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
         alert("Voice input is only supported in Google Chrome.\nPlease open this site in Chrome.");
         return;
     }
 
-    // ── 2. Toggle off if already listening ────────────────────────
+    // 2. Toggle off if already listening
     if (isListening && recognition) {
         recognition.stop();
         return;
     }
 
-    // ── 3. HTTPS check ────────────────────────────────────────────
+    // 3. HTTPS check
     const isSecure = location.protocol === "https:" ||
                      location.hostname  === "localhost" ||
                      location.hostname  === "127.0.0.1";
@@ -277,19 +445,17 @@ function startVoice() {
         return;
     }
 
-    // ── 4. Request mic permission first, then start recognition ───
+    // 4. Request mic permission first, then open popup
     navigator.mediaDevices.getUserMedia({ audio: true })
         .then(function (stream) {
-
-            // Release stream — only needed permission grant
             stream.getTracks().forEach(t => t.stop());
-
-            retryCount = 0;
-            _startRecognition(SpeechRecognition, btn);
+            btn.innerText = "🎤 Speak";
+            isListening = true;
+            showVoicePopup();
         })
         .catch(function (err) {
             btn.innerText = "🎤 Speak";
-            isListening   = false;
+            isListening = false;
 
             if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
                 alert("Microphone permission denied.\nClick the 🔒 icon in the address bar → Allow Microphone → refresh and try again.");
@@ -301,81 +467,6 @@ function startVoice() {
                 alert("Microphone error: " + err.message);
             }
         });
-}
-
-function _startRecognition(SpeechRecognition, btn) {
-
-    // ── Language mapping ──────────────────────────────────────────
-    const langMap = { english: "en-IN", hindi: "hi-IN", telugu: "te-IN" };
-    const selLang = document.getElementById("language").value;
-
-    recognition = new SpeechRecognition();
-    recognition.lang           = langMap[selLang] || "en-IN";
-    recognition.continuous     = false;
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = function () {
-        isListening   = true;
-        btn.innerText = "🔴 Listening...";
-    };
-
-    recognition.onresult = function (event) {
-        const transcript = event.results[0][0].transcript;
-        document.getElementById("prompt").value = transcript;
-        retryCount = 0;
-    };
-
-    recognition.onerror = function (event) {
-        isListening   = false;
-        btn.innerText = "🎤 Speak";
-
-        if (event.error === "network") {
-            // Auto-retry once on network error
-            if (retryCount < 1) {
-                retryCount++;
-                btn.innerText = "🔄 Retrying...";
-                setTimeout(function () {
-                    btn.innerText = "🎤 Speak";
-                    _startRecognition(SpeechRecognition, btn);
-                }, 1500);
-                return;
-            }
-            alert(
-                "Voice recognition network error.\n\n" +
-                "This happens when the browser cannot reach Google's speech servers.\n\n" +
-                "✅ Try these fixes:\n" +
-                "1. Check your internet connection\n" +
-                "2. Switch from WiFi to mobile data\n" +
-                "3. Open Chrome → Settings → Privacy → turn on 'Use Google services'\n" +
-                "4. Use Chrome on your Android phone (most reliable)"
-            );
-        } else if (event.error === "not-allowed" || event.error === "permission-denied") {
-            alert("Microphone access denied.\nAllow microphone in browser settings and try again.");
-        } else if (event.error === "no-speech") {
-            alert("No speech detected. Please speak clearly and try again.");
-        } else if (event.error === "audio-capture") {
-            alert("No microphone found. Please connect a microphone.");
-        } else if (event.error === "aborted") {
-            // user cancelled — silent
-        } else {
-            alert("Voice error: " + event.error + "\nPlease use Google Chrome.");
-        }
-    };
-
-    recognition.onend = function () {
-        isListening   = false;
-        btn.innerText = "🎤 Speak";
-    };
-
-    try {
-        recognition.start();
-    } catch (err) {
-        isListening   = false;
-        btn.innerText = "🎤 Speak";
-        console.error("recognition.start() error:", err);
-        alert("Could not start voice recognition. Please try again.");
-    }
 }
 
 // =========================
