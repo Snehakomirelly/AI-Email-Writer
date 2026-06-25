@@ -1,17 +1,89 @@
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
+import os, base64, io, tempfile, subprocess
+
 app = Flask(__name__)
 CORS(app)
+
+try:
+    import speech_recognition as sr
+    SR_OK = True
+except:
+    SR_OK = False
+
 # HOME PAGE
 @app.route("/")
 def home():
     return render_template("index.html")
+
+# VOICE ROUTE - receives audio from browser, returns text
+@app.route("/voice", methods=["POST"])
+def voice():
+    if not SR_OK:
+        return jsonify({"success": False, "error": "Run: pip install SpeechRecognition"})
+
+    try:
+        data = request.get_json()
+        audio_b64 = data.get("audio", "")
+        language = data.get("language", "english")
+
+        lang_map = {
+            "english": "en-IN",
+            "hindi": "hi-IN",
+            "telugu": "te-IN"
+        }
+        lang_code = lang_map.get(language, "en-IN")
+
+        audio_bytes = base64.b64decode(audio_b64)
+
+        webm_path = os.path.join(tempfile.gettempdir(), "voice_input.webm")
+        wav_path  = os.path.join(tempfile.gettempdir(), "voice_input.wav")
+
+        with open(webm_path, "wb") as f:
+            f.write(audio_bytes)
+
+        result = subprocess.run(
+            ["ffmpeg", "-y", "-i", webm_path, "-ar", "16000", "-ac", "1", "-f", "wav", wav_path],
+            capture_output=True,
+            timeout=30
+        )
+
+        if result.returncode != 0:
+            return jsonify({
+                "success": False,
+                "error": "ffmpeg not found. Install: winget install ffmpeg then restart terminal"
+            })
+
+        recognizer = sr.Recognizer()
+        recognizer.pause_threshold = 0.8
+
+        with sr.AudioFile(wav_path) as source:
+            audio = recognizer.record(source)
+
+        try:
+            os.remove(webm_path)
+            os.remove(wav_path)
+        except:
+            pass
+
+        text = recognizer.recognize_google(audio, language=lang_code)
+        return jsonify({"success": True, "text": text})
+
+    except sr.UnknownValueError:
+        return jsonify({"success": False, "error": "Could not understand. Please speak clearly and try again."})
+    except sr.RequestError as e:
+        return jsonify({"success": False, "error": "Speech service error: " + str(e)})
+    except subprocess.TimeoutExpired:
+        return jsonify({"success": False, "error": "Timed out. Please try again."})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
 # SMART SUBJECT GENERATOR
 def generate_subject(prompt, language):
     p = prompt.lower()
-    # ── English subjects ─
+
     if language == "english":
-        # LEAVE / SICK
         if "fever" in p:
             return "Sick Leave Request – Fever"
         elif "sick" in p or "ill" in p or "unwell" in p:
@@ -28,8 +100,6 @@ def generate_subject(prompt, language):
             return "Half Day Leave Request"
         elif "leave" in p:
             return "Leave Request"
-
-        # INTERNSHIP
         elif "internship" in p and "python" in p:
             return "Internship Application – Python Developer"
         elif "internship" in p and "java" in p:
@@ -46,8 +116,6 @@ def generate_subject(prompt, language):
             return "Internship Application – UI/UX Design"
         elif "internship" in p:
             return "Internship Application"
-
-        # JOB APPLICATION
         elif "job" in p and "python" in p:
             return "Job Application – Python Developer"
         elif "job" in p and "java" in p:
@@ -60,30 +128,22 @@ def generate_subject(prompt, language):
             return "Job Application – Manager Position"
         elif "job" in p or "application" in p:
             return "Job Application"
-
-        # APOLOGY
         elif "apology" in p and "late" in p:
             return "Apology for Late Submission"
         elif "apology" in p and "meeting" in p:
             return "Apology for Missing Meeting"
         elif "apology" in p or "sorry" in p:
             return "Sincere Apology"
-
-        # RESIGNATION
         elif "resignation" in p and "immediate" in p:
             return "Immediate Resignation Notice"
         elif "resignation" in p:
             return "Resignation Letter"
-
-        # THANK YOU
         elif "thank" in p and "interview" in p:
             return "Thank You – Post Interview"
         elif "thank" in p and "internship" in p:
             return "Thank You for the Internship Opportunity"
         elif "thank" in p:
             return "Thank You"
-
-        # MEETING
         elif "meeting" in p and "urgent" in p:
             return "Urgent Meeting Request"
         elif "meeting" in p and "project" in p:
@@ -92,8 +152,6 @@ def generate_subject(prompt, language):
             return "Meeting Request – Client Discussion"
         elif "meeting" in p:
             return "Meeting Request"
-
-        # INVITATION
         elif "invitation" in p or "invite" in p:
             if "wedding" in p:
                 return "Wedding Invitation"
@@ -103,25 +161,18 @@ def generate_subject(prompt, language):
                 return "Event Invitation"
             else:
                 return "Invitation"
-
-        # COMPLAINT
         elif "complaint" in p and "service" in p:
             return "Complaint – Poor Service"
         elif "complaint" in p and "product" in p:
             return "Complaint – Product Issue"
         elif "complaint" in p:
             return "Formal Complaint"
-
-        # DEFAULT
         else:
             words = prompt.strip().split()
             short = " ".join(words[:5]).title()
             return f"Regarding: {short}"
 
-    # ── Hindi subjects ─────────────────────────────────────────────
-
     elif language == "hindi":
-
         if "fever" in p or "बुखार" in p:
             return "बीमारी के कारण अवकाश अनुरोध – बुखार"
         elif "sick" in p or "ill" in p or "बीमार" in p:
@@ -151,10 +202,7 @@ def generate_subject(prompt, language):
             short = " ".join(words[:5]).title()
             return f"विषय: {short}"
 
-    # ── Telugu subjects ────────────────────────────────────────────
-
     elif language == "telugu":
-
         if "fever" in p:
             return "జ్వరం కారణంగా సెలవు అభ్యర్థన"
         elif "sick" in p or "ill" in p:
@@ -184,17 +232,12 @@ def generate_subject(prompt, language):
             short = " ".join(words[:5]).title()
             return f"విషయం: {short}"
 
-    # fallback
     return "Professional Email"
 
 
-# =========================
 # GENERATE EMAIL
-# =========================
-
 @app.route("/generate", methods=["POST"])
 def generate_email():
-
     data = request.get_json()
     recipient = data.get("recipient", "").strip()
     receipt_name = data.get("receipt_name", "").strip()
@@ -202,19 +245,11 @@ def generate_email():
     tone = data.get("tone", "formal").lower()
     language = data.get("language", "english").lower()
     template = data.get("template", "auto").lower()
-    
+
     if template != "auto":
         prompt = template
 
-    # =========================
-    # SMART SUBJECT
-    # =========================
-
     subject = generate_subject(prompt, language)
-
-    # =========================
-    # TONE SETTINGS & GREETINGS
-    # =========================
 
     # English
     if tone == "formal":
@@ -223,14 +258,12 @@ def generate_email():
         else:
             greeting_en = "Dear Sir/Madam,"
         closing_en = f"Sincerely,\n{receipt_name if receipt_name else 'Sneha'}"
-
     elif tone == "casual":
         if recipient:
             greeting_en = f"Hi {recipient},"
         else:
             greeting_en = "Hi,"
         closing_en = f"Best Regards,\n{receipt_name if receipt_name else 'Sneha'}"
-
     else:
         if recipient:
             greeting_en = f"Respected {recipient},"
@@ -245,14 +278,12 @@ def generate_email():
         else:
             greeting_hi = "आदरणीय महोदय/महोदया,"
         closing_hi = f"भवदीय,\n{receipt_name if receipt_name else 'Sneha'}"
-
     elif tone == "casual":
         if recipient:
             greeting_hi = f"नमस्ते {recipient},"
         else:
             greeting_hi = "नमस्ते,"
         closing_hi = f"शुभकामनाओं सहित,\n{receipt_name if receipt_name else 'Sneha'}"
-
     else:
         if recipient:
             greeting_hi = f"आदरणीय {recipient},"
@@ -267,14 +298,12 @@ def generate_email():
         else:
             greeting_te = "గౌరవనీయులైన సర్/మేడమ్ గారికి,"
         closing_te = f"మీ విధేయుడు/విధేయురాలు,\n{receipt_name if receipt_name else 'Sneha'}"
-
     elif tone == "casual":
         if recipient:
             greeting_te = f"హలో {recipient},"
         else:
             greeting_te = "హలో,"
         closing_te = f"శుభాకాంక్షలతో,\n{receipt_name if receipt_name else 'Sneha'}"
-
     else:
         if recipient:
             greeting_te = f"గౌరవనీయులైన {recipient},"
@@ -282,13 +311,8 @@ def generate_email():
             greeting_te = "గౌరవనీయులైన సర్/మేడమ్ గారికి,"
         closing_te = f"ధన్యవాదాలు,\n{receipt_name if receipt_name else 'Sneha'}"
 
-    # ==================================================
-    # EMAIL BODIES PER LANGUAGE
-    # ==================================================
-
-    # ---- LEAVE EMAIL ----
+    # LEAVE EMAIL
     if "leave" in prompt or "fever" in prompt or "sick" in prompt or "ill" in prompt:
-
         body_en = f"""{greeting_en}
 
 I hope you are doing well.
@@ -304,7 +328,6 @@ I will complete all pending work once I return.
 Thank you for your understanding and support.
 
 {closing_en}"""
-
         body_hi = f"""{greeting_hi}
 
 मुझे आशा है कि आप ठीक हैं।
@@ -320,7 +343,6 @@ Thank you for your understanding and support.
 आपकी समझ और सहयोग के लिए धन्यवाद।
 
 {closing_hi}"""
-
         body_te = f"""{greeting_te}
 
 మీరు బాగున్నారని ఆశిస్తున్నాను.
@@ -337,9 +359,7 @@ Thank you for your understanding and support.
 
 {closing_te}"""
 
-    # ---- INTERNSHIP EMAIL ----
     elif "internship" in prompt:
-
         body_en = f"""{greeting_en}
 
 I hope you are doing well.
@@ -355,7 +375,6 @@ Kindly consider my request for an internship opportunity.
 Thank you for your valuable time and consideration.
 
 {closing_en}"""
-
         body_hi = f"""{greeting_hi}
 
 मुझे आशा है कि आप ठीक हैं।
@@ -371,7 +390,6 @@ Thank you for your valuable time and consideration.
 आपके बहुमूल्य समय और विचार के लिए धन्यवाद।
 
 {closing_hi}"""
-
         body_te = f"""{greeting_te}
 
 మీరు బాగున్నారని ఆశిస్తున్నాను.
@@ -388,9 +406,7 @@ Thank you for your valuable time and consideration.
 
 {closing_te}"""
 
-    # ---- APOLOGY EMAIL ----
     elif "apology" in prompt or "sorry" in prompt:
-
         body_en = f"""{greeting_en}
 
 I sincerely apologize for the inconvenience caused due to my mistake.
@@ -404,7 +420,6 @@ Please accept my sincere apology.
 Thank you for your patience and understanding.
 
 {closing_en}"""
-
         body_hi = f"""{greeting_hi}
 
 मैं अपनी गलती के कारण हुई असुविधा के लिए ईमानदारी से माफी माँगता/माँगती हूँ।
@@ -418,7 +433,6 @@ Thank you for your patience and understanding.
 आपकी धैर्य और समझ के लिए धन्यवाद।
 
 {closing_hi}"""
-
         body_te = f"""{greeting_te}
 
 నా తప్పు వల్ల కలిగిన అసౌకర్యానికి నేను నిజాయితీగా క్షమాపణ కోరుతున్నాను.
@@ -433,9 +447,7 @@ Thank you for your patience and understanding.
 
 {closing_te}"""
 
-    # ---- RESIGNATION EMAIL ----
     elif "resignation" in prompt:
-
         body_en = f"""{greeting_en}
 
 Please accept this email as my formal resignation from my position.
@@ -449,7 +461,6 @@ Thank you for your encouragement and support throughout my journey.
 I wish the organization continued success in the future.
 
 {closing_en}"""
-
         body_hi = f"""{greeting_hi}
 
 कृपया इस ईमेल को मेरे पद से औपचारिक इस्तीफे के रूप में स्वीकार करें।
@@ -463,7 +474,6 @@ I wish the organization continued success in the future.
 मैं संगठन की भविष्य में निरंतर सफलता की कामना करता/करती हूँ।
 
 {closing_hi}"""
-
         body_te = f"""{greeting_te}
 
 దయచేసి ఈ ఇమెయిల్‌ని నా పదవి నుండి అధికారిక రాజీనామాగా స్వీకరించండి.
@@ -478,9 +488,7 @@ I wish the organization continued success in the future.
 
 {closing_te}"""
 
-    # ---- THANK YOU EMAIL ----
     elif "thank" in prompt:
-
         body_en = f"""{greeting_en}
 
 I would like to sincerely thank you for your support and guidance.
@@ -492,7 +500,6 @@ I truly appreciate the time and effort you have provided.
 Thank you once again for your kindness and continuous support.
 
 {closing_en}"""
-
         body_hi = f"""{greeting_hi}
 
 मैं आपके समर्थन और मार्गदर्शन के लिए ईमानदारी से धन्यवाद देना चाहता/चाहती हूँ।
@@ -504,7 +511,6 @@ Thank you once again for your kindness and continuous support.
 आपकी दयालुता और निरंतर समर्थन के लिए एक बार फिर धन्यवाद।
 
 {closing_hi}"""
-
         body_te = f"""{greeting_te}
 
 మీ మద్దతు మరియు మార్గదర్శకత్వానికి హృదయపూర్వకంగా ధన్యవాదాలు చెప్పాలని ఉంది.
@@ -517,9 +523,7 @@ Thank you once again for your kindness and continuous support.
 
 {closing_te}"""
 
-    # ---- MEETING REQUEST ----
     elif "meeting" in prompt:
-
         body_en = f"""{greeting_en}
 
 I hope you are doing well.
@@ -533,7 +537,6 @@ Please let me know your availability for the meeting.
 Thank you for your consideration.
 
 {closing_en}"""
-
         body_hi = f"""{greeting_hi}
 
 मुझे आशा है कि आप ठीक हैं।
@@ -547,7 +550,6 @@ Thank you for your consideration.
 आपके विचार के लिए धन्यवाद।
 
 {closing_hi}"""
-
         body_te = f"""{greeting_te}
 
 మీరు బాగున్నారని ఆశిస్తున్నాను.
@@ -562,9 +564,7 @@ Thank you for your consideration.
 
 {closing_te}"""
 
-    # ---- INVITATION EMAIL ----
     elif "invitation" in prompt or "invite" in prompt:
-
         body_en = f"""{greeting_en}
 
 I would like to cordially invite you to our upcoming event.
@@ -578,7 +578,6 @@ I hope you will accept this invitation and join us for the event.
 Thank you and looking forward to your presence.
 
 {closing_en}"""
-
         body_hi = f"""{greeting_hi}
 
 मैं आपको हमारे आगामी कार्यक्रम में सादर आमंत्रित करना चाहता/चाहती हूँ।
@@ -592,7 +591,6 @@ Thank you and looking forward to your presence.
 धन्यवाद और आपकी उपस्थिति की प्रतीक्षा में।
 
 {closing_hi}"""
-
         body_te = f"""{greeting_te}
 
 మా రాబోయే కార్యక్రమానికి మిమ్మల్ని హృదయపూర్వకంగా ఆహ్వానించాలని ఉంది.
@@ -607,9 +605,7 @@ Thank you and looking forward to your presence.
 
 {closing_te}"""
 
-    # ---- COMPLAINT EMAIL ----
     elif "complaint" in prompt:
-
         body_en = f"""{greeting_en}
 
 I would like to bring to your notice an issue that I recently faced.
@@ -623,7 +619,6 @@ I would appreciate your quick response regarding this issue.
 Thank you for your attention and support.
 
 {closing_en}"""
-
         body_hi = f"""{greeting_hi}
 
 मैं आपके संज्ञान में एक समस्या लाना चाहता/चाहती हूँ जिसका मुझे हाल ही में सामना करना पड़ा।
@@ -637,7 +632,6 @@ Thank you for your attention and support.
 आपके ध्यान और समर्थन के लिए धन्यवाद।
 
 {closing_hi}"""
-
         body_te = f"""{greeting_te}
 
 నేను ఇటీవల ఎదుర్కొన్న సమసస్యను మీ దృష్టికి తీసుకువెళ్లాలని ఉంది.
@@ -652,9 +646,7 @@ Thank you for your attention and support.
 
 {closing_te}"""
 
-    # ---- JOB APPLICATION ----
     elif "job" in prompt or "application" in prompt:
-
         body_en = f"""{greeting_en}
 
 I am writing to apply for the available job opportunity in your organization.
@@ -668,7 +660,6 @@ Please consider my application for the position.
 Thank you for your time and consideration.
 
 {closing_en}"""
-
         body_hi = f"""{greeting_hi}
 
 मैं आपके संगठन में उपलब्ध नौकरी के अवसर के लिए आवेदन करने के लिए लिख रहा/रही हूँ।
@@ -682,7 +673,6 @@ Thank you for your time and consideration.
 आपके समय और विचार के लिए धन्यवाद।
 
 {closing_hi}"""
-
         body_te = f"""{greeting_te}
 
 మీ సంస్థలో అందుబాటులో ఉన్న ఉద్యోగ అవకాశం కోసం దరఖాస్తు చేసుకోవడానికి రాస్తున్నాను.
@@ -697,9 +687,7 @@ Thank you for your time and consideration.
 
 {closing_te}"""
 
-    # ---- DEFAULT EMAIL ----
     else:
-
         body_en = f"""{greeting_en}
 
 I hope you are doing well.
@@ -713,7 +701,6 @@ Please consider my request and provide the necessary assistance.
 Thank you for your time and understanding.
 
 {closing_en}"""
-
         body_hi = f"""{greeting_hi}
 
 मुझे आशा है कि आप ठीक हैं।
@@ -727,7 +714,6 @@ Thank you for your time and understanding.
 आपके समय और समझ के लिए धन्यवाद।
 
 {closing_hi}"""
-
         body_te = f"""{greeting_te}
 
 మీరు బాగున్నారని ఆశిస్తున్నాను.
@@ -741,10 +727,6 @@ Thank you for your time and understanding.
 మీ సమయానికి మరియు అవగాహనకు ధన్యవాదాలు.
 
 {closing_te}"""
-
-    # =========================
-    # SELECT LANGUAGE
-    # =========================
 
     if language == "hindi":
         body = body_hi
@@ -761,10 +743,6 @@ Thank you for your time and understanding.
         "receipt_name": receipt_name if receipt_name else "Sneha"
     })
 
-
-# =========================
-# RUN FLASK APP
-# =========================
 
 if __name__ == "__main__":
     app.run(debug=True)
